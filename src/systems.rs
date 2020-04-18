@@ -1,28 +1,45 @@
-use super::components::{HasGravity, Height, ObjectMesh, Position};
+use super::components::{Acceleration, HasGravity, Height, ObjectMesh, Position, Velocity};
 use ggez::nalgebra::Point2;
 use ggez::{graphics, Context};
 use specs::prelude::*;
 
 pub struct GravitySystem {
     pub arena_height: f32,
+    pub delta_time: f32,
 }
 
 impl<'a> System<'a> for GravitySystem {
-    type SystemData = (
-        WriteStorage<'a, Position>,
-        ReadStorage<'a, HasGravity>,
-        ReadStorage<'a, Height>,
-    );
+    type SystemData = (WriteStorage<'a, Acceleration>, ReadStorage<'a, HasGravity>);
 
-    fn run(&mut self, (mut position, has_gravity, height): Self::SystemData) {
+    fn run(&mut self, (mut acceleration, has_gravity): Self::SystemData) {
         use specs::Join;
 
-        for (entity_position, _has_gravity, height) in (&mut position, &has_gravity, &height).join()
+        for (acceleration, _has_gravity) in (&mut acceleration, &has_gravity).join() {
+            acceleration.y += 1.0 * self.delta_time;
+        }
+    }
+}
+
+pub struct MoveSystem;
+
+impl<'a> System<'a> for MoveSystem {
+    type SystemData = (
+        WriteStorage<'a, Acceleration>,
+        WriteStorage<'a, Position>,
+        WriteStorage<'a, Velocity>,
+    );
+
+    fn run(&mut self, (mut acceleration, mut position, mut velocity): Self::SystemData) {
+        for (acceleration, position, velocity) in
+            (&mut acceleration, &mut position, &mut velocity).join()
         {
-            entity_position.y += 0.01;
-            if entity_position.y + height.get() > self.arena_height {
-                entity_position.y = self.arena_height - height.get();
-            }
+            velocity.x += acceleration.x;
+            velocity.y += acceleration.y;
+            position.x += velocity.x;
+            position.y += velocity.y;
+
+            acceleration.x = 0.0;
+            acceleration.y = 0.0;
         }
     }
 }

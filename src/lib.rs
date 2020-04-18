@@ -2,13 +2,13 @@ mod components;
 mod meshes;
 mod systems;
 
-use components::{Floor, HasGravity, Height, ObjectMesh, Position};
+use components::{Acceleration, Drag, Floor, HasGravity, Height, ObjectMesh, Position, Velocity};
 use ggez::event::EventHandler;
 use ggez::graphics::{DrawMode, DrawParam, Mesh, MeshBuilder};
 use ggez::nalgebra::Point2;
 use ggez::{graphics, Context, GameResult};
 use specs::prelude::*;
-use systems::{GravitySystem, RenderSystem};
+use systems::{GravitySystem, MoveSystem, RenderSystem};
 
 pub struct GameState {
     world: World,
@@ -28,6 +28,9 @@ impl GameState {
         world.register::<HasGravity>();
         world.register::<Floor>();
         world.register::<Height>();
+        world.register::<Velocity>();
+        world.register::<Acceleration>();
+        world.register::<Drag>();
 
         // egg
         world
@@ -44,11 +47,14 @@ impl GameState {
             .create_entity()
             .with(Position {
                 x: 100.0,
-                y: arena_height - player_width - 50.0,
+                y: arena_height - player_width - 500.0,
             })
             .with(ObjectMesh::new(player))
             .with(HasGravity)
             .with(Height::new(player_height / 2.0))
+            .with(Velocity { x: 0.0, y: 0.0 })
+            .with(Acceleration { x: 0.0, y: 0.0 })
+            .with(Drag::new(0.0))
             .build();
 
         // floor
@@ -68,8 +74,14 @@ impl GameState {
 impl EventHandler for GameState {
     fn update(&mut self, context: &mut Context) -> GameResult<()> {
         let (arena_width, arena_height) = graphics::drawable_size(context);
-        let mut gravity_system = GravitySystem { arena_height };
+        let delta_time = ggez::timer::delta(context);
+        let mut gravity_system = GravitySystem {
+            arena_height,
+            delta_time: delta_time.as_secs_f32(),
+        };
+        let mut move_system = MoveSystem;
         gravity_system.run_now(&self.world);
+        move_system.run_now(&self.world);
         self.world.maintain();
         Ok(())
     }
