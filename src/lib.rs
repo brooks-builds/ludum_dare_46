@@ -8,7 +8,7 @@ use ggez::graphics::{DrawMode, DrawParam, Mesh, MeshBuilder};
 use ggez::nalgebra::Point2;
 use ggez::{graphics, Context, GameResult};
 use specs::prelude::*;
-use systems::{GravitySystem, MoveSystem, RenderSystem};
+use systems::{GravitySystem, HitGround, MoveSystem, RenderSystem};
 
 pub struct GameState {
     world: World,
@@ -80,7 +80,9 @@ impl EventHandler for GameState {
             delta_time: delta_time.as_secs_f32(),
         };
         let mut move_system = MoveSystem;
+        let mut hit_ground = HitGround { arena_height };
         gravity_system.run_now(&self.world);
+        hit_ground.run_now(&self.world);
         move_system.run_now(&self.world);
         self.world.maintain();
         Ok(())

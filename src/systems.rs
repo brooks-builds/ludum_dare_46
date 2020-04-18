@@ -40,6 +40,14 @@ impl<'a> System<'a> for MoveSystem {
 
             acceleration.x = 0.0;
             acceleration.y = 0.0;
+
+            if velocity.x > 1.0 {
+                velocity.x = 1.0;
+            }
+
+            if velocity.y > 1.0 {
+                velocity.y = 1.0;
+            }
         }
     }
 }
@@ -61,6 +69,26 @@ impl<'a> System<'a> for RenderSystem<'a> {
                 graphics::DrawParam::default().dest(Point2::new(position.x, position.y)),
             )
             .unwrap();
+        }
+    }
+}
+
+pub struct HitGround {
+    pub arena_height: f32,
+}
+
+impl<'a> System<'a> for HitGround {
+    type SystemData = (
+        WriteStorage<'a, Position>,
+        ReadStorage<'a, Height>,
+        ReadStorage<'a, HasGravity>,
+    );
+
+    fn run(&mut self, (mut position, height, has_gravity): Self::SystemData) {
+        for (position, height, _has_gravity) in (&mut position, &height, &has_gravity).join() {
+            if position.y + height.get() > self.arena_height {
+                position.y = self.arena_height - height.get();
+            }
         }
     }
 }
