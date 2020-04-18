@@ -71,3 +71,21 @@ impl Drag {
         self.0
     }
 }
+
+#[derive(Component, Debug)]
+#[storage(VecStorage)]
+pub struct OnGround(bool);
+
+impl OnGround {
+    pub fn new() -> OnGround {
+        OnGround(false)
+    }
+
+    pub fn get(&self) -> bool {
+        self.0
+    }
+
+    pub fn set(&mut self, new_value: bool) {
+        self.0 = new_value;
+    }
+}

@@ -2,13 +2,17 @@ mod components;
 mod meshes;
 mod systems;
 
-use components::{Acceleration, Drag, Floor, HasGravity, Height, ObjectMesh, Position, Velocity};
+use components::{
+    Acceleration, Drag, Floor, HasGravity, Height, ObjectMesh, OnGround, Position, Velocity,
+};
 use ggez::event::EventHandler;
 use ggez::graphics::{DrawMode, DrawParam, Mesh, MeshBuilder};
 use ggez::nalgebra::Point2;
 use ggez::{graphics, Context, GameResult};
 use specs::prelude::*;
-use systems::{GravitySystem, HitGround, MoveSystem, RenderSystem};
+use systems::{
+    ApplyForceSystem, DragSystem, GravitySystem, HitGround, MovePlayerSystem, RenderSystem,
+};
 
 pub struct GameState {
     world: World,
@@ -31,6 +35,7 @@ impl GameState {
         world.register::<Velocity>();
         world.register::<Acceleration>();
         world.register::<Drag>();
+        world.register::<OnGround>();
 
         // egg
         world
@@ -55,6 +60,7 @@ impl GameState {
             .with(Velocity { x: 0.0, y: 0.0 })
             .with(Acceleration { x: 0.0, y: 0.0 })
             .with(Drag::new(0.0))
+            .with(OnGround::new())
             .build();
 
         // floor
@@ -74,16 +80,24 @@ impl GameState {
 impl EventHandler for GameState {
     fn update(&mut self, context: &mut Context) -> GameResult<()> {
         let (arena_width, arena_height) = graphics::drawable_size(context);
-        let delta_time = ggez::timer::delta(context);
+        let delta_time = ggez::timer::delta(context).as_secs_f32();
         let mut gravity_system = GravitySystem {
             arena_height,
-            delta_time: delta_time.as_secs_f32(),
+            delta_time,
         };
-        let mut move_system = MoveSystem;
+        let mut move_system = ApplyForceSystem;
         let mut hit_ground = HitGround { arena_height };
+        let mut move_player_system = MovePlayerSystem {
+            context,
+            delta_time,
+        };
+        let mut drag_system = DragSystem { delta_time };
+
         gravity_system.run_now(&self.world);
         hit_ground.run_now(&self.world);
         move_system.run_now(&self.world);
+        move_player_system.run_now(&self.world);
+        drag_system.run_now(&self.world);
         self.world.maintain();
         Ok(())
     }
