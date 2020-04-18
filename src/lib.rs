@@ -5,8 +5,9 @@ mod systems;
 use components::{
     Acceleration, Drag, Floor, HasGravity, Height, ObjectMesh, OnGround, Position, Velocity,
 };
-use ggez::event::EventHandler;
+use ggez::event::{EventHandler, KeyCode};
 use ggez::graphics::{DrawMode, DrawParam, Mesh, MeshBuilder};
+use ggez::input::keyboard;
 use ggez::nalgebra::Point2;
 use ggez::{graphics, Context, GameResult};
 use specs::prelude::*;
@@ -80,18 +81,17 @@ impl GameState {
 impl EventHandler for GameState {
     fn update(&mut self, context: &mut Context) -> GameResult<()> {
         let (arena_width, arena_height) = graphics::drawable_size(context);
-        let delta_time = ggez::timer::delta(context).as_secs_f32();
-        let mut gravity_system = GravitySystem {
-            arena_height,
-            delta_time,
-        };
-        let mut move_system = ApplyForceSystem;
+        let mut delta_time = ggez::timer::average_delta(context).as_secs_f32();
+        let pressed_keys = keyboard::pressed_keys(context);
+        let fps_cap = 1.0 / 60.0;
+        if delta_time < fps_cap {
+            delta_time = fps_cap;
+        }
+        let mut gravity_system = GravitySystem { arena_height };
+        let mut move_system = ApplyForceSystem { delta_time };
         let mut hit_ground = HitGround { arena_height };
-        let mut move_player_system = MovePlayerSystem {
-            context,
-            delta_time,
-        };
-        let mut drag_system = DragSystem { delta_time };
+        let mut move_player_system = MovePlayerSystem { pressed_keys };
+        let mut drag_system = DragSystem;
 
         gravity_system.run_now(&self.world);
         hit_ground.run_now(&self.world);

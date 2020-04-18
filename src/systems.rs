@@ -6,25 +6,33 @@ use ggez::input::keyboard;
 use ggez::nalgebra::{Point2, Vector2};
 use ggez::{graphics, Context};
 use specs::prelude::*;
+use std::collections::HashSet;
 
 pub struct GravitySystem {
     pub arena_height: f32,
-    pub delta_time: f32,
 }
 
 impl<'a> System<'a> for GravitySystem {
-    type SystemData = (WriteStorage<'a, Acceleration>, ReadStorage<'a, HasGravity>);
+    type SystemData = (
+        WriteStorage<'a, Acceleration>,
+        ReadStorage<'a, HasGravity>,
+        ReadStorage<'a, OnGround>,
+    );
 
-    fn run(&mut self, (mut acceleration, has_gravity): Self::SystemData) {
-        use specs::Join;
-
-        for (acceleration, _has_gravity) in (&mut acceleration, &has_gravity).join() {
-            acceleration.y += 1.0 * self.delta_time;
+    fn run(&mut self, (mut acceleration, has_gravity, on_ground): Self::SystemData) {
+        for (acceleration, _has_gravity, on_ground) in
+            (&mut acceleration, &has_gravity, &on_ground).join()
+        {
+            if !on_ground.get() {
+                acceleration.y += 0.1;
+            }
         }
     }
 }
 
-pub struct ApplyForceSystem;
+pub struct ApplyForceSystem {
+    pub delta_time: f32,
+}
 
 impl<'a> System<'a> for ApplyForceSystem {
     type SystemData = (
@@ -34,24 +42,31 @@ impl<'a> System<'a> for ApplyForceSystem {
     );
 
     fn run(&mut self, (mut acceleration, mut position, mut velocity): Self::SystemData) {
+        let horizontal_limit = 10.0;
+        let vertical_limit = 0.6;
         for (acceleration, position, velocity) in
             (&mut acceleration, &mut position, &mut velocity).join()
         {
             velocity.x += acceleration.x;
             velocity.y += acceleration.y;
-            position.x += velocity.x;
-            position.y += velocity.y;
+            position.x += velocity.x * self.delta_time;
+            position.y += velocity.y * self.delta_time;
 
             acceleration.x = 0.0;
             acceleration.y = 0.0;
 
-            if velocity.x > 1.0 {
-                velocity.x = 1.0;
+            if velocity.x > horizontal_limit {
+                println!("velocity x above limit");
+                velocity.x = horizontal_limit;
+            } else if velocity.x < -horizontal_limit {
+                println!("velocity x below limit");
+                velocity.x = -horizontal_limit;
             }
 
-            if velocity.y > 1.0 {
-                velocity.y = 1.0;
-            }
+            // if velocity.y < -vertical_limit {
+            //     println!("velocity y below limit");
+            //     velocity.y = -vertical_limit;
+            // }
         }
     }
 }
@@ -104,31 +119,38 @@ impl<'a> System<'a> for HitGround {
 }
 
 pub struct MovePlayerSystem<'a> {
-    pub context: &'a mut Context,
-    pub delta_time: f32,
+    pub pressed_keys: &'a HashSet<KeyCode>,
 }
 
 impl<'a> System<'a> for MovePlayerSystem<'a> {
-    type SystemData = (WriteStorage<'a, Position>, WriteStorage<'a, Acceleration>);
+    type SystemData = (
+        WriteStorage<'a, Position>,
+        WriteStorage<'a, Acceleration>,
+        ReadStorage<'a, OnGround>,
+    );
 
-    fn run(&mut self, (mut position, mut acceleration): Self::SystemData) {
-        for (position, acceleration) in (&mut position, &mut acceleration).join() {
-            if keyboard::is_key_pressed(self.context, KeyCode::A)
-                || keyboard::is_key_pressed(self.context, KeyCode::Left)
+    fn run(&mut self, (mut position, mut acceleration, on_ground): Self::SystemData) {
+        let horizontal_speed = 1.5;
+        for (position, acceleration, on_ground) in
+            (&mut position, &mut acceleration, &on_ground).join()
+        {
+            if self.pressed_keys.contains(&KeyCode::A) || self.pressed_keys.contains(&KeyCode::Left)
             {
-                acceleration.x -= 8.0 * self.delta_time;
-            } else if keyboard::is_key_pressed(self.context, KeyCode::D)
-                || keyboard::is_key_pressed(self.context, KeyCode::Right)
+                acceleration.x -= horizontal_speed;
+            } else if self.pressed_keys.contains(&KeyCode::D)
+                || self.pressed_keys.contains(&KeyCode::Right)
             {
-                acceleration.x += 8.0 * self.delta_time;
+                acceleration.x += horizontal_speed;
+            }
+
+            if on_ground.get() && self.pressed_keys.contains(&KeyCode::Space) {
+                acceleration.y -= 23.5;
             }
         }
     }
 }
 
-pub struct DragSystem {
-    pub delta_time: f32,
-}
+pub struct DragSystem;
 
 impl<'a> System<'a> for DragSystem {
     type SystemData = (
@@ -141,13 +163,11 @@ impl<'a> System<'a> for DragSystem {
         for (velocity, acceleration, on_ground) in
             (&mut velocity, &mut acceleration, &on_ground).join()
         {
-            if on_ground.get() {
-                let mut force = Vector2::new(velocity.x, velocity.y);
-                force *= -1.0;
-                force = force.normalize();
+            let mut force = Vector2::new(velocity.x, velocity.y);
+            force = force.normalize();
+            force *= -1.0;
 
-                acceleration.x += force.x * 0.01;
-            }
+            acceleration.x += force.x * 0.1;
         }
     }
 }
