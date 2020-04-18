@@ -28,3 +28,10 @@ pub fn createPersonMesh(context: &mut Context, width: f32, height: f32) -> GameR
         )
         .build(context)
 }
+
+pub fn createFloor(context: &mut Context, width: f32, height: f32) -> GameResult<Mesh> {
+    let floor = Rect::new(0.0, 0.0, width, height);
+    MeshBuilder::new()
+        .rectangle(DrawMode::fill(), floor, graphics::WHITE)
+        .build(context)
+}
