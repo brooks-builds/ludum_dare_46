@@ -73,9 +73,17 @@ impl<'a> System<'a> for RenderSystem<'a> {
         ReadStorage<'a, Position>,
         ReadStorage<'a, ObjectMesh>,
         Read<'a, StillAlive>,
+        ReadStorage<'a, BulletState>,
     );
 
-    fn run(&mut self, (position, mesh, still_alive): Self::SystemData) {
+    fn run(&mut self, (position, mesh, still_alive, bullet_state): Self::SystemData) {
+        let mut bullet_count_text = String::from("Bullets: ");
+        for bullet_state in bullet_state.join() {
+            if let CurrentBulletState::Ready = bullet_state.get() {
+                bullet_count_text = format!("{} *", bullet_count_text);
+            }
+        }
+
         for (position, mesh) in (&position, &mesh).join() {
             graphics::draw(
                 self.context,
@@ -98,6 +106,13 @@ impl<'a> System<'a> for RenderSystem<'a> {
             )
             .unwrap();
         }
+
+        graphics::draw(
+            self.context,
+            &graphics::Text::new(bullet_count_text),
+            graphics::DrawParam::default().dest(Point2::new(5.0, 5.0)),
+        )
+        .unwrap();
     }
 }
 
@@ -331,7 +346,7 @@ impl<'a> System<'a> for FireBulletSystem {
                     bullet_velocity.x = direction.x * bullet_speed;
                     bullet_velocity.y = direction.y * bullet_speed;
                     bullet_state.fire();
-                    delay_firing_until_after.set(self.duration_since_start + (1000 / 3));
+                    delay_firing_until_after.set(self.duration_since_start + 100);
                 }
             }
         }

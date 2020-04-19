@@ -6,7 +6,7 @@ A Ludum Dare 46 project
 
 * [x] Birds fly down to take egg
 * [x] Player can shoot birds
-* [ ] Player has limited bullets
+* [x] Player has limited bullets
 * [ ] Game over if egg is taken off screen
 * [ ] Player has limited firing arc
 * [ ] Number of birds increase slowly over time

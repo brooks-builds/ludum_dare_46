@@ -117,7 +117,7 @@ impl GameState {
             .build();
 
         // bullets
-        for _ in 0..20 {
+        for _ in 0..3 {
             let bullet_mesh = meshes::createBullet(context, bullet_size)?;
             world
                 .create_entity()
