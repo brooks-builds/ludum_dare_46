@@ -1,8 +1,9 @@
 use super::components::{
-    Acceleration, Flyer, HasGravity, Height, KeepAlive, ObjectMesh, OnGround, Position, Velocity,
-    Width,
+    Acceleration, Bullet, Flyer, HasGravity, Height, KeepAlive, ObjectMesh, OnGround, Player,
+    Position, Radius, Velocity, Width,
 };
-use super::resources::StillAlive;
+use super::meshes;
+use super::resources::{BulletSize, StillAlive};
 use ggez::event::KeyCode;
 use ggez::input::keyboard;
 use ggez::nalgebra::{Point2, Vector2};
@@ -47,26 +48,16 @@ impl<'a> System<'a> for ApplyForceSystem {
         let horizontal_limit = 10.0;
         let vertical_limit = 0.6;
         for (acceleration, position, velocity) in
-            (&mut acceleration, &mut position, &mut velocity).join()
+            ((&mut acceleration).maybe(), &mut position, &mut velocity).join()
         {
-            velocity.x += acceleration.x;
-            velocity.y += acceleration.y;
+            if let Some(acceleration) = acceleration {
+                velocity.x += acceleration.x;
+                velocity.y += acceleration.y;
+                acceleration.x = 0.0;
+                acceleration.y = 0.0;
+            }
             position.x += velocity.x * self.delta_time;
             position.y += velocity.y * self.delta_time;
-
-            acceleration.x = 0.0;
-            acceleration.y = 0.0;
-
-            if velocity.x > horizontal_limit {
-                velocity.x = horizontal_limit;
-            } else if velocity.x < -horizontal_limit {
-                velocity.x = -horizontal_limit;
-            }
-
-            // if velocity.y < -vertical_limit {
-            //     println!("velocity y below limit");
-            //     velocity.y = -vertical_limit;
-            // }
         }
     }
 }
@@ -287,6 +278,40 @@ impl<'a> System<'a> for LandOnEggSystem {
                     flyer_velocity.y = 0.0;
                 }
             }
+        }
+    }
+}
+
+pub struct FireBulletSystem {
+    pub mouse_location: Point2<f32>,
+}
+
+impl<'a> System<'a> for FireBulletSystem {
+    type SystemData = (
+        WriteStorage<'a, Position>,
+        ReadStorage<'a, Player>,
+        WriteStorage<'a, Velocity>,
+        Read<'a, BulletSize>,
+        ReadStorage<'a, Bullet>,
+    );
+
+    fn run(&mut self, (mut position, player, mut velocity, bullet_size, bullet): Self::SystemData) {
+        let mut player_location = Vector2::new(-50.0, -50.0);
+        let mut direction = Vector2::new(0.0, 0.0);
+        let bullet_speed = 50.0;
+        for (player_position, _player) in (&position, &player).join() {
+            player_location = Vector2::new(player_position.x, player_position.y);
+            let target_location = Vector2::new(self.mouse_location.x, self.mouse_location.y);
+            direction = target_location - player_location;
+        }
+        for (bullet_position, _bullet, bullet_velocity) in
+            (&mut position, &bullet, &mut velocity).join()
+        {
+            direction = direction.normalize();
+            bullet_position.x = player_location.x;
+            bullet_position.y = player_location.y;
+            bullet_velocity.x = direction.x * bullet_speed;
+            bullet_velocity.y = direction.y * bullet_speed;
         }
     }
 }

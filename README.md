@@ -5,9 +5,9 @@ A Ludum Dare 46 project
 ## Features to add
 
 * [x] Birds fly down to take egg
-* [ ] Game over if egg is taken off screen
 * [ ] Player can shoot birds
 * [ ] Player has limited bullets
+* [ ] Game over if egg is taken off screen
 * [ ] Player has limited firing arc
 * [ ] Number of birds increase slowly over time
 * [ ] Score based on birds killed and time egg survived

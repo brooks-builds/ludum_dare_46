@@ -1,5 +1,5 @@
 use ggez::graphics::Mesh;
-use specs::{Component, VecStorage};
+use specs::{Component, NullStorage, VecStorage};
 
 #[derive(Component, Debug)]
 #[storage(VecStorage)]
@@ -125,3 +125,25 @@ impl KeepAlive {
 #[derive(Component, Debug)]
 #[storage(VecStorage)]
 pub struct Flyer;
+
+#[derive(Default, Component, Debug)]
+#[storage(NullStorage)]
+pub struct Bullet;
+
+#[derive(Default, Component, Debug)]
+#[storage(NullStorage)]
+pub struct Player;
+
+#[derive(Component, Debug)]
+#[storage(VecStorage)]
+pub struct Radius(f32);
+
+impl Radius {
+    pub fn new(radius: f32) -> Radius {
+        Radius(radius)
+    }
+
+    pub fn get(&self) -> f32 {
+        self.0
+    }
+}

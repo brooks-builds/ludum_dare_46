@@ -4,20 +4,20 @@ mod resources;
 mod systems;
 
 use components::{
-    Acceleration, Drag, Floor, Flyer, HasGravity, Height, KeepAlive, ObjectMesh, OnGround,
-    Position, Velocity, Width,
+    Acceleration, Bullet, Drag, Floor, Flyer, HasGravity, Height, KeepAlive, ObjectMesh, OnGround,
+    Player, Position, Radius, Velocity, Width,
 };
 use ggez::event::{EventHandler, KeyCode};
 use ggez::graphics::{DrawMode, DrawParam, Mesh, MeshBuilder};
-use ggez::input::keyboard;
+use ggez::input::{keyboard, mouse};
 use ggez::nalgebra::Point2;
 use ggez::{graphics, Context, GameResult};
-use resources::StillAlive;
+use resources::{BulletSize, StillAlive};
 use specs::prelude::*;
 use specs::ReadStorage;
 use systems::{
-    ApplyForceSystem, CheckEggSystem, DragSystem, FlySystem, GravitySystem, HitGround,
-    LandOnEggSystem, MovePlayerSystem, RenderSystem,
+    ApplyForceSystem, CheckEggSystem, DragSystem, FireBulletSystem, FlySystem, GravitySystem,
+    HitGround, LandOnEggSystem, MovePlayerSystem, RenderSystem,
 };
 
 pub struct GameState {
@@ -38,6 +38,8 @@ impl GameState {
         let bird_height = 10.0;
         let bird_mesh = meshes::createBird(context, bird_width, bird_height)?;
         let mut world = World::new();
+        let bullet_size = 5.0;
+        let bullet_mesh = meshes::createBullet(context, bullet_size)?;
         world.register::<Position>();
         world.register::<ObjectMesh>();
         world.register::<HasGravity>();
@@ -50,8 +52,12 @@ impl GameState {
         world.register::<Width>();
         world.register::<KeepAlive>();
         world.register::<Flyer>();
+        world.register::<Player>();
+        world.register::<Bullet>();
+        world.register::<Radius>();
 
         world.insert(StillAlive::new());
+        world.insert(BulletSize::new(bullet_size));
 
         // egg
         world
@@ -81,6 +87,7 @@ impl GameState {
             .with(Acceleration { x: 0.0, y: 0.0 })
             .with(Drag::new(0.0))
             .with(OnGround::new())
+            .with(Player)
             .build();
 
         // floor
@@ -106,6 +113,16 @@ impl GameState {
             .with(Drag::new(0.0))
             .with(Flyer)
             .build();
+
+        // bullet
+        world
+            .create_entity()
+            .with(Position { x: -50.0, y: -50.0 })
+            .with(Velocity { x: 0.0, y: 0.0 })
+            .with(Bullet)
+            .with(ObjectMesh::new(bullet_mesh))
+            .with(Radius::new(bullet_size))
+            .build();
         Ok(GameState { world })
     }
 }
@@ -127,6 +144,13 @@ impl EventHandler for GameState {
         let mut check_egg = CheckEggSystem;
         let mut fly_system = FlySystem;
         let mut landing_on_egg = LandOnEggSystem;
+        if mouse::button_pressed(context, mouse::MouseButton::Left) {
+            let mouse_location = mouse::position(context);
+            let mut fire_bullet_system = FireBulletSystem {
+                mouse_location: Point2::new(mouse_location.x, mouse_location.y),
+            };
+            fire_bullet_system.run_now(&mut self.world);
+        }
 
         gravity_system.run_now(&self.world);
         hit_ground.run_now(&self.world);

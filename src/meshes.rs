@@ -49,3 +49,15 @@ pub fn createBird(context: &mut Context, width: f32, height: f32) -> GameResult<
         )?
         .build(context)
 }
+
+pub fn createBullet(context: &mut Context, radius: f32) -> GameResult<Mesh> {
+    MeshBuilder::new()
+        .circle(
+            DrawMode::fill(),
+            Point2::new(0.0, 0.0),
+            radius,
+            0.1,
+            graphics::WHITE,
+        )
+        .build(context)
+}
