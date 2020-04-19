@@ -4,15 +4,15 @@ mod resources;
 mod systems;
 
 use components::{
-    Acceleration, Bullet, Drag, Floor, Flyer, HasGravity, Height, KeepAlive, ObjectMesh, OnGround,
-    Player, Position, Radius, Velocity, Width,
+    Acceleration, Bullet, BulletState, Drag, Floor, Flyer, HasGravity, Height, KeepAlive,
+    ObjectMesh, OnGround, Player, Position, Radius, Velocity, Width,
 };
 use ggez::event::{EventHandler, KeyCode};
 use ggez::graphics::{DrawMode, DrawParam, Mesh, MeshBuilder};
 use ggez::input::{keyboard, mouse};
 use ggez::nalgebra::Point2;
-use ggez::{graphics, Context, GameResult};
-use resources::{BulletSize, StillAlive};
+use ggez::{graphics, timer, Context, GameResult};
+use resources::{BulletSize, DelayFiringUntilAfter, StillAlive};
 use specs::prelude::*;
 use specs::ReadStorage;
 use systems::{
@@ -39,7 +39,6 @@ impl GameState {
         let bird_mesh = meshes::createBird(context, bird_width, bird_height)?;
         let mut world = World::new();
         let bullet_size = 5.0;
-        let bullet_mesh = meshes::createBullet(context, bullet_size)?;
         world.register::<Position>();
         world.register::<ObjectMesh>();
         world.register::<HasGravity>();
@@ -55,9 +54,11 @@ impl GameState {
         world.register::<Player>();
         world.register::<Bullet>();
         world.register::<Radius>();
+        world.register::<BulletState>();
 
         world.insert(StillAlive::new());
         world.insert(BulletSize::new(bullet_size));
+        world.insert(DelayFiringUntilAfter::new());
 
         // egg
         world
@@ -114,15 +115,19 @@ impl GameState {
             .with(Flyer)
             .build();
 
-        // bullet
-        world
-            .create_entity()
-            .with(Position { x: -50.0, y: -50.0 })
-            .with(Velocity { x: 0.0, y: 0.0 })
-            .with(Bullet)
-            .with(ObjectMesh::new(bullet_mesh))
-            .with(Radius::new(bullet_size))
-            .build();
+        // bullets
+        for _ in 0..3 {
+            let bullet_mesh = meshes::createBullet(context, bullet_size)?;
+            world
+                .create_entity()
+                .with(Position { x: -50.0, y: -50.0 })
+                .with(ObjectMesh::new(bullet_mesh))
+                .with(Velocity { x: 0.0, y: 0.0 })
+                .with(Bullet)
+                .with(Radius::new(bullet_size))
+                .with(BulletState::new())
+                .build();
+        }
         Ok(GameState { world })
     }
 }
@@ -136,6 +141,7 @@ impl EventHandler for GameState {
         if delta_time < fps_cap {
             delta_time = fps_cap;
         }
+        let duration_since_start = timer::time_since_start(context);
         let mut gravity_system = GravitySystem { arena_height };
         let mut move_system = ApplyForceSystem { delta_time };
         let mut hit_ground = HitGround { arena_height };
@@ -148,6 +154,7 @@ impl EventHandler for GameState {
             let mouse_location = mouse::position(context);
             let mut fire_bullet_system = FireBulletSystem {
                 mouse_location: Point2::new(mouse_location.x, mouse_location.y),
+                duration_since_start: duration_since_start.as_millis(),
             };
             fire_bullet_system.run_now(&mut self.world);
         }
@@ -163,9 +170,9 @@ impl EventHandler for GameState {
 
         let still_alive = self.world.fetch::<StillAlive>();
 
-        if !still_alive.get() {
-            println!("game over");
-        }
+        // if !still_alive.get() {
+        //     println!("game over");
+        // }
         Ok(())
     }
 

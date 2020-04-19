@@ -1,15 +1,16 @@
 use super::components::{
-    Acceleration, Bullet, Flyer, HasGravity, Height, KeepAlive, ObjectMesh, OnGround, Player,
-    Position, Radius, Velocity, Width,
+    Acceleration, Bullet, BulletState, CurrentBulletState, Flyer, HasGravity, Height, KeepAlive,
+    ObjectMesh, OnGround, Player, Position, Radius, Velocity, Width,
 };
 use super::meshes;
-use super::resources::{BulletSize, StillAlive};
+use super::resources::{BulletSize, DelayFiringUntilAfter, StillAlive};
 use ggez::event::KeyCode;
 use ggez::input::keyboard;
 use ggez::nalgebra::{Point2, Vector2};
 use ggez::{graphics, Context};
 use specs::prelude::*;
 use std::collections::HashSet;
+use std::time::Duration;
 
 pub struct GravitySystem {
     pub arena_height: f32,
@@ -284,6 +285,7 @@ impl<'a> System<'a> for LandOnEggSystem {
 
 pub struct FireBulletSystem {
     pub mouse_location: Point2<f32>,
+    pub duration_since_start: u128,
 }
 
 impl<'a> System<'a> for FireBulletSystem {
@@ -293,9 +295,22 @@ impl<'a> System<'a> for FireBulletSystem {
         WriteStorage<'a, Velocity>,
         Read<'a, BulletSize>,
         ReadStorage<'a, Bullet>,
+        WriteStorage<'a, BulletState>,
+        Write<'a, DelayFiringUntilAfter>,
     );
 
-    fn run(&mut self, (mut position, player, mut velocity, bullet_size, bullet): Self::SystemData) {
+    fn run(
+        &mut self,
+        (
+            mut position,
+            player,
+            mut velocity,
+            bullet_size,
+            bullet,
+            mut bullet_state,
+            mut delay_firing_until_after,
+        ): Self::SystemData,
+    ) {
         let mut player_location = Vector2::new(-50.0, -50.0);
         let mut direction = Vector2::new(0.0, 0.0);
         let bullet_speed = 50.0;
@@ -304,14 +319,20 @@ impl<'a> System<'a> for FireBulletSystem {
             let target_location = Vector2::new(self.mouse_location.x, self.mouse_location.y);
             direction = target_location - player_location;
         }
-        for (bullet_position, _bullet, bullet_velocity) in
-            (&mut position, &bullet, &mut velocity).join()
+        for (bullet_position, _bullet, bullet_velocity, bullet_state) in
+            (&mut position, &bullet, &mut velocity, &mut bullet_state).join()
         {
-            direction = direction.normalize();
-            bullet_position.x = player_location.x;
-            bullet_position.y = player_location.y;
-            bullet_velocity.x = direction.x * bullet_speed;
-            bullet_velocity.y = direction.y * bullet_speed;
+            if let CurrentBulletState::Ready = bullet_state.get() {
+                if delay_firing_until_after.get() < self.duration_since_start {
+                    direction = direction.normalize();
+                    bullet_position.x = player_location.x;
+                    bullet_position.y = player_location.y;
+                    bullet_velocity.x = direction.x * bullet_speed;
+                    bullet_velocity.y = direction.y * bullet_speed;
+                    bullet_state.fire();
+                    delay_firing_until_after.set(self.duration_since_start + 100);
+                }
+            }
         }
     }
 }

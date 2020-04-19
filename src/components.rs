@@ -147,3 +147,27 @@ impl Radius {
         self.0
     }
 }
+
+#[derive(Component, Debug)]
+#[storage(VecStorage)]
+pub struct BulletState(CurrentBulletState);
+
+impl BulletState {
+    pub fn new() -> BulletState {
+        BulletState(CurrentBulletState::Ready)
+    }
+
+    pub fn get(&self) -> CurrentBulletState {
+        self.0.clone()
+    }
+
+    pub fn fire(&mut self) {
+        self.0 = CurrentBulletState::Firing;
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum CurrentBulletState {
+    Ready,
+    Firing,
+}

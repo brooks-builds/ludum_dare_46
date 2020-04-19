@@ -27,3 +27,20 @@ impl BulletSize {
         self.0
     }
 }
+
+#[derive(Default)]
+pub struct DelayFiringUntilAfter(u128);
+
+impl DelayFiringUntilAfter {
+    pub fn new() -> DelayFiringUntilAfter {
+        DelayFiringUntilAfter(0)
+    }
+
+    pub fn get(&self) -> u128 {
+        self.0
+    }
+
+    pub fn set(&mut self, new_time: u128) {
+        self.0 = new_time;
+    }
+}
