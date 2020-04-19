@@ -164,6 +164,10 @@ impl BulletState {
     pub fn fire(&mut self) {
         self.0 = CurrentBulletState::Firing;
     }
+
+    pub fn ready(&mut self) {
+        self.0 = CurrentBulletState::Ready;
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

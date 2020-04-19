@@ -17,7 +17,7 @@ use specs::prelude::*;
 use specs::ReadStorage;
 use systems::{
     ApplyForceSystem, CheckEggSystem, DragSystem, FireBulletSystem, FlySystem, GravitySystem,
-    HitGround, LandOnEggSystem, MovePlayerSystem, RenderSystem,
+    HitGround, LandOnEggSystem, MovePlayerSystem, RenderSystem, ResetBulletsSystem,
 };
 
 pub struct GameState {
@@ -116,7 +116,7 @@ impl GameState {
             .build();
 
         // bullets
-        for _ in 0..3 {
+        for _ in 0..20 {
             let bullet_mesh = meshes::createBullet(context, bullet_size)?;
             world
                 .create_entity()
@@ -150,6 +150,10 @@ impl EventHandler for GameState {
         let mut check_egg = CheckEggSystem;
         let mut fly_system = FlySystem;
         let mut landing_on_egg = LandOnEggSystem;
+        let mut reset_bullets = ResetBulletsSystem {
+            arena_width,
+            arena_height,
+        };
         if mouse::button_pressed(context, mouse::MouseButton::Left) {
             let mouse_location = mouse::position(context);
             let mut fire_bullet_system = FireBulletSystem {
@@ -167,6 +171,7 @@ impl EventHandler for GameState {
         check_egg.run_now(&self.world);
         fly_system.run_now(&self.world);
         landing_on_egg.run_now(&self.world);
+        reset_bullets.run_now(&self.world);
 
         let still_alive = self.world.fetch::<StillAlive>();
 

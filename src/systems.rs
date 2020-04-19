@@ -330,8 +330,38 @@ impl<'a> System<'a> for FireBulletSystem {
                     bullet_velocity.x = direction.x * bullet_speed;
                     bullet_velocity.y = direction.y * bullet_speed;
                     bullet_state.fire();
-                    delay_firing_until_after.set(self.duration_since_start + 100);
+                    delay_firing_until_after.set(self.duration_since_start + (1000 / 3));
                 }
+            }
+        }
+    }
+}
+
+pub struct ResetBulletsSystem {
+    pub arena_width: f32,
+    pub arena_height: f32,
+}
+
+impl<'a> System<'a> for ResetBulletsSystem {
+    type SystemData = (
+        ReadStorage<'a, Position>,
+        WriteStorage<'a, Velocity>,
+        ReadStorage<'a, Bullet>,
+        WriteStorage<'a, BulletState>,
+    );
+
+    fn run(&mut self, (position, mut velocity, bullet, mut bullet_state): Self::SystemData) {
+        for (position, velocity, bullet, bullet_state) in
+            (&position, &mut velocity, &bullet, &mut bullet_state).join()
+        {
+            if position.x < -10.0
+                || position.x > self.arena_width + 10.0
+                || position.y < -10.0
+                || position.y > self.arena_height + 10.0
+            {
+                bullet_state.ready();
+                velocity.x = 0.0;
+                velocity.y = 0.0;
             }
         }
     }
