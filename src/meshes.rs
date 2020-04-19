@@ -35,3 +35,17 @@ pub fn createFloor(context: &mut Context, width: f32, height: f32) -> GameResult
         .rectangle(DrawMode::fill(), floor, graphics::WHITE)
         .build(context)
 }
+
+pub fn createBird(context: &mut Context, width: f32, height: f32) -> GameResult<Mesh> {
+    MeshBuilder::new()
+        .polyline(
+            DrawMode::stroke(5.0),
+            &[
+                Point2::new(-width, -height),
+                Point2::new(0.0, 0.0),
+                Point2::new(width, -height),
+            ],
+            graphics::WHITE,
+        )?
+        .build(context)
+}

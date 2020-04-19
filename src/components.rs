@@ -121,3 +121,7 @@ impl KeepAlive {
         self.0 = false;
     }
 }
+
+#[derive(Component, Debug)]
+#[storage(VecStorage)]
+pub struct Flyer;

@@ -1,5 +1,6 @@
 use super::components::{
-    Acceleration, HasGravity, Height, KeepAlive, ObjectMesh, OnGround, Position, Velocity, Width,
+    Acceleration, Flyer, HasGravity, Height, KeepAlive, ObjectMesh, OnGround, Position, Velocity,
+    Width,
 };
 use super::resources::StillAlive;
 use ggez::event::KeyCode;
@@ -182,7 +183,7 @@ impl<'a> System<'a> for DragSystem {
             force = force.normalize();
             force *= -1.0;
 
-            acceleration.x += force.x * 0.1;
+            acceleration.x += force.x * 0.5;
         }
     }
 }
@@ -216,6 +217,74 @@ impl<'a> System<'a> for CheckEggSystem {
 
                 if distance < egg_width.get() {
                     still_alive.set(false);
+                }
+            }
+        }
+    }
+}
+
+pub struct FlySystem;
+
+impl<'a> System<'a> for FlySystem {
+    type SystemData = (
+        ReadStorage<'a, Position>,
+        ReadStorage<'a, KeepAlive>,
+        WriteStorage<'a, Acceleration>,
+        ReadStorage<'a, Flyer>,
+    );
+
+    fn run(&mut self, (position, keep_alive, mut acceleration, flyer): Self::SystemData) {
+        for (flyer_position, flyer_acceleration, _flyer) in
+            (&position, &mut acceleration, &flyer).join()
+        {
+            let flyer_location = Vector2::new(flyer_position.x, flyer_position.y);
+
+            for (egg_position, _keep_alive) in (&position, &keep_alive).join() {
+                let egg_location = Vector2::new(egg_position.x, egg_position.y);
+                let mut direction = egg_location - flyer_location;
+                let distance = direction.magnitude();
+
+                if distance > 25.0 {
+                    direction = direction.normalize();
+                    let force = direction * 0.001;
+                    flyer_acceleration.x += force.x;
+                    flyer_acceleration.y += force.y;
+                }
+            }
+        }
+    }
+}
+
+pub struct LandOnEggSystem;
+
+impl<'a> System<'a> for LandOnEggSystem {
+    type SystemData = (
+        ReadStorage<'a, Position>,
+        ReadStorage<'a, Flyer>,
+        ReadStorage<'a, KeepAlive>,
+        WriteStorage<'a, Acceleration>,
+        WriteStorage<'a, Velocity>,
+    );
+
+    fn run(
+        &mut self,
+        (position, flyer, keep_alive, mut acceleration, mut velocity): Self::SystemData,
+    ) {
+        for (flyer_position, flyer, flyer_acceleration, flyer_velocity) in
+            (&position, &flyer, &mut acceleration, &mut velocity).join()
+        {
+            let flyer_location = Vector2::new(flyer_position.x, flyer_position.y);
+
+            for (egg_position, keep_alive) in (&position, &keep_alive).join() {
+                let egg_location = Vector2::new(egg_position.x, egg_position.y);
+                let direction = egg_location - flyer_location;
+                let distance = direction.magnitude();
+
+                if distance < 2.0 {
+                    flyer_acceleration.x = 0.0;
+                    flyer_acceleration.y = 0.0;
+                    flyer_velocity.x = 0.0;
+                    flyer_velocity.y = 0.0;
                 }
             }
         }

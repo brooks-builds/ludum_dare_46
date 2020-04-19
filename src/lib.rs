@@ -4,8 +4,8 @@ mod resources;
 mod systems;
 
 use components::{
-    Acceleration, Drag, Floor, HasGravity, Height, KeepAlive, ObjectMesh, OnGround, Position,
-    Velocity, Width,
+    Acceleration, Drag, Floor, Flyer, HasGravity, Height, KeepAlive, ObjectMesh, OnGround,
+    Position, Velocity, Width,
 };
 use ggez::event::{EventHandler, KeyCode};
 use ggez::graphics::{DrawMode, DrawParam, Mesh, MeshBuilder};
@@ -16,8 +16,8 @@ use resources::StillAlive;
 use specs::prelude::*;
 use specs::ReadStorage;
 use systems::{
-    ApplyForceSystem, CheckEggSystem, DragSystem, GravitySystem, HitGround, MovePlayerSystem,
-    RenderSystem,
+    ApplyForceSystem, CheckEggSystem, DragSystem, FlySystem, GravitySystem, HitGround,
+    LandOnEggSystem, MovePlayerSystem, RenderSystem,
 };
 
 pub struct GameState {
@@ -34,6 +34,9 @@ impl GameState {
         let player_width = 15.0;
         let player = meshes::createPersonMesh(context, player_width, player_height)?;
         let floor = meshes::createFloor(context, arena_width, 5.0)?;
+        let bird_width = 25.0;
+        let bird_height = 10.0;
+        let bird_mesh = meshes::createBird(context, bird_width, bird_height)?;
         let mut world = World::new();
         world.register::<Position>();
         world.register::<ObjectMesh>();
@@ -46,6 +49,7 @@ impl GameState {
         world.register::<OnGround>();
         world.register::<Width>();
         world.register::<KeepAlive>();
+        world.register::<Flyer>();
 
         world.insert(StillAlive::new());
 
@@ -89,6 +93,19 @@ impl GameState {
             .with(ObjectMesh::new(floor))
             .with(Floor)
             .build();
+
+        // bird
+        world
+            .create_entity()
+            .with(Position { x: 200.0, y: 200.0 })
+            .with(ObjectMesh::new(bird_mesh))
+            .with(Height::new(bird_height))
+            .with(Width::new(bird_width))
+            .with(Velocity { x: 0.0, y: 0.0 })
+            .with(Acceleration { x: 0.0, y: 0.0 })
+            .with(Drag::new(0.0))
+            .with(Flyer)
+            .build();
         Ok(GameState { world })
     }
 }
@@ -108,6 +125,8 @@ impl EventHandler for GameState {
         let mut move_player_system = MovePlayerSystem { pressed_keys };
         let mut drag_system = DragSystem;
         let mut check_egg = CheckEggSystem;
+        let mut fly_system = FlySystem;
+        let mut landing_on_egg = LandOnEggSystem;
 
         gravity_system.run_now(&self.world);
         hit_ground.run_now(&self.world);
@@ -115,6 +134,8 @@ impl EventHandler for GameState {
         move_player_system.run_now(&self.world);
         drag_system.run_now(&self.world);
         check_egg.run_now(&self.world);
+        fly_system.run_now(&self.world);
+        landing_on_egg.run_now(&self.world);
 
         let still_alive = self.world.fetch::<StillAlive>();
 
