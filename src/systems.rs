@@ -9,6 +9,7 @@ use ggez::input::keyboard;
 use ggez::nalgebra::{Point2, Vector2};
 use ggez::{graphics, Context};
 use specs::prelude::*;
+use specs::Entities;
 use std::collections::HashSet;
 use std::time::Duration;
 
@@ -362,6 +363,57 @@ impl<'a> System<'a> for ResetBulletsSystem {
                 bullet_state.ready();
                 velocity.x = 0.0;
                 velocity.y = 0.0;
+            }
+        }
+    }
+}
+
+pub struct ShootBirdsSystem;
+
+impl<'a> System<'a> for ShootBirdsSystem {
+    type SystemData = (
+        ReadStorage<'a, Position>,
+        ReadStorage<'a, Bullet>,
+        ReadStorage<'a, Flyer>,
+        Entities<'a>,
+        WriteStorage<'a, BulletState>,
+    );
+
+    fn run(&mut self, (mut position, bullet, flyer, entities, mut bullet_state): Self::SystemData) {
+        for (bullet_position, bullet, bullet_entity, bullet_state) in
+            (&position, &bullet, &entities, &mut bullet_state).join()
+        {
+            if let CurrentBulletState::Firing = bullet_state.get() {
+                let bullet_location = Vector2::new(bullet_position.x, bullet_position.y);
+                for (flyer_position, flyer, flyer_entity) in (&position, &flyer, &entities).join() {
+                    let flyer_location = Vector2::new(flyer_position.x, flyer_position.y);
+                    let direction = flyer_location - bullet_location;
+                    let distance = direction.magnitude();
+                    if distance < 25.0 {
+                        entities.delete(flyer_entity).unwrap();
+                        bullet_state.hit();
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub struct HideHitBullets;
+
+impl<'a> System<'a> for HideHitBullets {
+    type SystemData = (
+        ReadStorage<'a, Bullet>,
+        WriteStorage<'a, BulletState>,
+        WriteStorage<'a, Position>,
+    );
+
+    fn run(&mut self, (bullet, mut bullet_state, mut position): Self::SystemData) {
+        for (bullet, bullet_state, position) in (&bullet, &mut bullet_state, &mut position).join() {
+            if let CurrentBulletState::Hit = bullet_state.get() {
+                bullet_state.ready();
+                position.x = -50.0;
+                position.y = -50.0;
             }
         }
     }

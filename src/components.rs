@@ -168,10 +168,15 @@ impl BulletState {
     pub fn ready(&mut self) {
         self.0 = CurrentBulletState::Ready;
     }
+
+    pub fn hit(&mut self) {
+        self.0 = CurrentBulletState::Hit;
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum CurrentBulletState {
     Ready,
     Firing,
+    Hit,
 }

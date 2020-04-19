@@ -17,7 +17,8 @@ use specs::prelude::*;
 use specs::ReadStorage;
 use systems::{
     ApplyForceSystem, CheckEggSystem, DragSystem, FireBulletSystem, FlySystem, GravitySystem,
-    HitGround, LandOnEggSystem, MovePlayerSystem, RenderSystem, ResetBulletsSystem,
+    HideHitBullets, HitGround, LandOnEggSystem, MovePlayerSystem, RenderSystem, ResetBulletsSystem,
+    ShootBirdsSystem,
 };
 
 pub struct GameState {
@@ -154,6 +155,8 @@ impl EventHandler for GameState {
             arena_width,
             arena_height,
         };
+        let mut shoot_bird_system = ShootBirdsSystem;
+        let mut hide_hit_bullets = HideHitBullets;
         if mouse::button_pressed(context, mouse::MouseButton::Left) {
             let mouse_location = mouse::position(context);
             let mut fire_bullet_system = FireBulletSystem {
@@ -172,12 +175,15 @@ impl EventHandler for GameState {
         fly_system.run_now(&self.world);
         landing_on_egg.run_now(&self.world);
         reset_bullets.run_now(&self.world);
+        shoot_bird_system.run_now(&self.world);
+        hide_hit_bullets.run_now(&self.world);
 
-        let still_alive = self.world.fetch::<StillAlive>();
+        // let still_alive = &self.world.fetch::<StillAlive>();
 
         // if !still_alive.get() {
         //     println!("game over");
         // }
+        self.world.maintain();
         Ok(())
     }
 
