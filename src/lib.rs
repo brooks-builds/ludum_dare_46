@@ -1,18 +1,23 @@
 mod components;
 mod meshes;
+mod resources;
 mod systems;
 
 use components::{
-    Acceleration, Drag, Floor, HasGravity, Height, ObjectMesh, OnGround, Position, Velocity,
+    Acceleration, Drag, Floor, HasGravity, Height, KeepAlive, ObjectMesh, OnGround, Position,
+    Velocity, Width,
 };
 use ggez::event::{EventHandler, KeyCode};
 use ggez::graphics::{DrawMode, DrawParam, Mesh, MeshBuilder};
 use ggez::input::keyboard;
 use ggez::nalgebra::Point2;
 use ggez::{graphics, Context, GameResult};
+use resources::StillAlive;
 use specs::prelude::*;
+use specs::ReadStorage;
 use systems::{
-    ApplyForceSystem, DragSystem, GravitySystem, HitGround, MovePlayerSystem, RenderSystem,
+    ApplyForceSystem, CheckEggSystem, DragSystem, GravitySystem, HitGround, MovePlayerSystem,
+    RenderSystem,
 };
 
 pub struct GameState {
@@ -22,7 +27,9 @@ pub struct GameState {
 impl GameState {
     pub fn new(context: &mut Context) -> GameResult<GameState> {
         let (arena_width, arena_height) = graphics::drawable_size(context);
-        let egg_mesh = meshes::createEggMesh(context)?;
+        let egg_width = 5.0;
+        let egg_height = 15.0;
+        let egg_mesh = meshes::createEggMesh(context, egg_width, egg_height)?;
         let player_height = 50.0;
         let player_width = 15.0;
         let player = meshes::createPersonMesh(context, player_width, player_height)?;
@@ -37,6 +44,10 @@ impl GameState {
         world.register::<Acceleration>();
         world.register::<Drag>();
         world.register::<OnGround>();
+        world.register::<Width>();
+        world.register::<KeepAlive>();
+
+        world.insert(StillAlive::new());
 
         // egg
         world
@@ -46,6 +57,9 @@ impl GameState {
                 y: arena_height - 25.0,
             })
             .with(ObjectMesh::new(egg_mesh))
+            .with(Width::new(egg_width))
+            .with(Height::new(egg_height))
+            .with(KeepAlive::new())
             .build();
 
         // player
@@ -58,6 +72,7 @@ impl GameState {
             .with(ObjectMesh::new(player))
             .with(HasGravity)
             .with(Height::new(player_height / 2.0))
+            .with(Width::new(player_width))
             .with(Velocity { x: 0.0, y: 0.0 })
             .with(Acceleration { x: 0.0, y: 0.0 })
             .with(Drag::new(0.0))
@@ -92,13 +107,20 @@ impl EventHandler for GameState {
         let mut hit_ground = HitGround { arena_height };
         let mut move_player_system = MovePlayerSystem { pressed_keys };
         let mut drag_system = DragSystem;
+        let mut check_egg = CheckEggSystem;
 
         gravity_system.run_now(&self.world);
         hit_ground.run_now(&self.world);
         move_system.run_now(&self.world);
         move_player_system.run_now(&self.world);
         drag_system.run_now(&self.world);
-        self.world.maintain();
+        check_egg.run_now(&self.world);
+
+        let still_alive = self.world.fetch::<StillAlive>();
+
+        if !still_alive.get() {
+            println!("game over");
+        }
         Ok(())
     }
 

@@ -32,6 +32,20 @@ impl Height {
 
 #[derive(Component, Debug)]
 #[storage(VecStorage)]
+pub struct Width(f32);
+
+impl Width {
+    pub fn new(width: f32) -> Width {
+        Width(width)
+    }
+
+    pub fn get(&self) -> f32 {
+        self.0
+    }
+}
+
+#[derive(Component, Debug)]
+#[storage(VecStorage)]
 pub struct ObjectMesh(Mesh);
 
 impl ObjectMesh {
@@ -87,5 +101,23 @@ impl OnGround {
 
     pub fn set(&mut self, new_value: bool) {
         self.0 = new_value;
+    }
+}
+
+#[derive(Component, Debug)]
+#[storage(VecStorage)]
+pub struct KeepAlive(bool);
+
+impl KeepAlive {
+    pub fn new() -> KeepAlive {
+        KeepAlive(true)
+    }
+
+    pub fn get(&self) -> bool {
+        self.0
+    }
+
+    pub fn die(&mut self) {
+        self.0 = false;
     }
 }

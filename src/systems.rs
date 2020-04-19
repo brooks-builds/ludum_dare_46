@@ -1,6 +1,7 @@
 use super::components::{
-    Acceleration, HasGravity, Height, ObjectMesh, OnGround, Position, Velocity,
+    Acceleration, HasGravity, Height, KeepAlive, ObjectMesh, OnGround, Position, Velocity, Width,
 };
+use super::resources::StillAlive;
 use ggez::event::KeyCode;
 use ggez::input::keyboard;
 use ggez::nalgebra::{Point2, Vector2};
@@ -56,10 +57,8 @@ impl<'a> System<'a> for ApplyForceSystem {
             acceleration.y = 0.0;
 
             if velocity.x > horizontal_limit {
-                println!("velocity x above limit");
                 velocity.x = horizontal_limit;
             } else if velocity.x < -horizontal_limit {
-                println!("velocity x below limit");
                 velocity.x = -horizontal_limit;
             }
 
@@ -76,16 +75,32 @@ pub struct RenderSystem<'a> {
 }
 
 impl<'a> System<'a> for RenderSystem<'a> {
-    type SystemData = (ReadStorage<'a, Position>, ReadStorage<'a, ObjectMesh>);
+    type SystemData = (
+        ReadStorage<'a, Position>,
+        ReadStorage<'a, ObjectMesh>,
+        Read<'a, StillAlive>,
+    );
 
-    fn run(&mut self, (position, mesh): Self::SystemData) {
-        use specs::Join;
-
+    fn run(&mut self, (position, mesh, still_alive): Self::SystemData) {
         for (position, mesh) in (&position, &mesh).join() {
             graphics::draw(
                 self.context,
                 mesh.get(),
                 graphics::DrawParam::default().dest(Point2::new(position.x, position.y)),
+            )
+            .unwrap();
+        }
+        if !still_alive.get() {
+            let (arena_width, arena_height) = graphics::drawable_size(self.context);
+            let font = graphics::Font::default();
+            let font_scale = graphics::Scale::uniform(100.0);
+            let mut game_over_text = graphics::Text::new("Game Over");
+            game_over_text.set_font(font, font_scale);
+            graphics::draw(
+                self.context,
+                &game_over_text,
+                graphics::DrawParam::default()
+                    .dest(Point2::new(arena_width / 4.0, arena_height / 2.0 - 100.0)),
             )
             .unwrap();
         }
@@ -168,6 +183,41 @@ impl<'a> System<'a> for DragSystem {
             force *= -1.0;
 
             acceleration.x += force.x * 0.1;
+        }
+    }
+}
+
+pub struct CheckEggSystem;
+
+impl<'a> System<'a> for CheckEggSystem {
+    type SystemData = (
+        ReadStorage<'a, Position>,
+        ReadStorage<'a, Height>,
+        ReadStorage<'a, Width>,
+        WriteStorage<'a, KeepAlive>,
+        Write<'a, StillAlive>,
+    );
+
+    fn run(
+        &mut self,
+        (position, height, width, mut keep_alive, mut still_alive): Self::SystemData,
+    ) {
+        for (entity_position, entity_height, entity_width, ()) in
+            (&position, &height, &width, !&keep_alive).join()
+        {
+            for (egg_position, egg_height, egg_width, keep_alive) in
+                (&position, &height, &width, &keep_alive).join()
+            {
+                // should only be the egg
+                let entity_location = Vector2::new(entity_position.x, entity_position.y);
+                let egg_location = Vector2::new(egg_position.x, egg_position.y);
+                let distance = entity_location - egg_location;
+                let distance = distance.magnitude();
+
+                if distance < egg_width.get() {
+                    still_alive.set(false);
+                }
+            }
         }
     }
 }

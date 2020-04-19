@@ -2,13 +2,13 @@ use ggez::graphics::{DrawMode, Mesh, MeshBuilder, Rect};
 use ggez::nalgebra::Point2;
 use ggez::{graphics, Context, GameResult};
 
-pub fn createEggMesh(context: &mut Context) -> GameResult<Mesh> {
+pub fn createEggMesh(context: &mut Context, width: f32, height: f32) -> GameResult<Mesh> {
     MeshBuilder::new()
         .ellipse(
             DrawMode::fill(),
             Point2::new(0.0, 0.0),
-            10.0,
-            25.0,
+            width,
+            height,
             1.5,
             graphics::WHITE,
         )
