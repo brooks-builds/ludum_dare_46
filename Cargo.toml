@@ -10,3 +10,4 @@ edition = "2018"
 specs = { version = "0.16.1", features = ["specs-derive"] }
 bbggez = "1.1.0"
 ggez = "0.5.1"
+rand = "0.7.3"

@@ -29,7 +29,7 @@ impl<'a> System<'a> for GravitySystem {
             (&mut acceleration, &has_gravity, &on_ground).join()
         {
             if !on_ground.get() {
-                acceleration.y += 0.1;
+                acceleration.y += 0.5;
             }
         }
     }
@@ -44,22 +44,28 @@ impl<'a> System<'a> for ApplyForceSystem {
         WriteStorage<'a, Acceleration>,
         WriteStorage<'a, Position>,
         WriteStorage<'a, Velocity>,
+        Read<'a, StillAlive>,
     );
 
-    fn run(&mut self, (mut acceleration, mut position, mut velocity): Self::SystemData) {
-        let horizontal_limit = 10.0;
-        let vertical_limit = 0.6;
-        for (acceleration, position, velocity) in
-            ((&mut acceleration).maybe(), &mut position, &mut velocity).join()
-        {
-            if let Some(acceleration) = acceleration {
-                velocity.x += acceleration.x;
-                velocity.y += acceleration.y;
-                acceleration.x = 0.0;
-                acceleration.y = 0.0;
+    fn run(
+        &mut self,
+        (mut acceleration, mut position, mut velocity, still_alive): Self::SystemData,
+    ) {
+        if still_alive.get() {
+            let horizontal_limit = 10.0;
+            let vertical_limit = 0.6;
+            for (acceleration, position, velocity) in
+                ((&mut acceleration).maybe(), &mut position, &mut velocity).join()
+            {
+                if let Some(acceleration) = acceleration {
+                    velocity.x += acceleration.x;
+                    velocity.y += acceleration.y;
+                    acceleration.x = 0.0;
+                    acceleration.y = 0.0;
+                }
+                position.x += velocity.x * self.delta_time;
+                position.y += velocity.y * self.delta_time;
             }
-            position.x += velocity.x * self.delta_time;
-            position.y += velocity.y * self.delta_time;
         }
     }
 }
@@ -154,7 +160,7 @@ impl<'a> System<'a> for MovePlayerSystem<'a> {
     );
 
     fn run(&mut self, (mut position, mut acceleration, on_ground): Self::SystemData) {
-        let horizontal_speed = 1.5;
+        let horizontal_speed = 0.8;
         for (position, acceleration, on_ground) in
             (&mut position, &mut acceleration, &on_ground).join()
         {
@@ -168,7 +174,7 @@ impl<'a> System<'a> for MovePlayerSystem<'a> {
             }
 
             if on_ground.get() && self.pressed_keys.contains(&KeyCode::Space) {
-                acceleration.y -= 23.5;
+                acceleration.y -= 50.5;
             }
         }
     }
@@ -191,7 +197,7 @@ impl<'a> System<'a> for DragSystem {
             force = force.normalize();
             force *= -1.0;
 
-            acceleration.x += force.x * 0.5;
+            acceleration.x += force.x * 0.8;
         }
     }
 }
@@ -254,7 +260,7 @@ impl<'a> System<'a> for FlySystem {
 
                 if distance > 25.0 {
                     direction = direction.normalize();
-                    let force = direction * 0.001;
+                    let force = direction * 0.05;
                     flyer_acceleration.x += force.x;
                     flyer_acceleration.y += force.y;
                 }
@@ -329,7 +335,7 @@ impl<'a> System<'a> for FireBulletSystem {
     ) {
         let mut player_location = Vector2::new(-50.0, -50.0);
         let mut direction = Vector2::new(0.0, 0.0);
-        let bullet_speed = 50.0;
+        let bullet_speed = 150.0;
         for (player_position, _player) in (&position, &player).join() {
             player_location = Vector2::new(player_position.x, player_position.y);
             let target_location = Vector2::new(self.mouse_location.x, self.mouse_location.y);

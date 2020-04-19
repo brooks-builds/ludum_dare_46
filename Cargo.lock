@@ -986,6 +986,7 @@ version = "0.1.0"
 dependencies = [
  "bbggez",
  "ggez",
+ "rand 0.7.3",
  "specs",
 ]
 

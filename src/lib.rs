@@ -12,6 +12,7 @@ use ggez::graphics::{DrawMode, DrawParam, Mesh, MeshBuilder};
 use ggez::input::{keyboard, mouse};
 use ggez::nalgebra::Point2;
 use ggez::{graphics, timer, Context, GameResult};
+use rand::prelude::*;
 use resources::{BulletSize, DelayFiringUntilAfter, StillAlive};
 use specs::prelude::*;
 use specs::ReadStorage;
@@ -23,6 +24,12 @@ use systems::{
 
 pub struct GameState {
     world: World,
+    create_bird_every_miliseconds: u128,
+    time_to_create_bird: u128,
+    birds_to_create_at_the_same_time: usize,
+    bird_mesh: Mesh,
+    bird_width: f32,
+    bird_height: f32,
 }
 
 impl GameState {
@@ -35,11 +42,10 @@ impl GameState {
         let player_width = 15.0;
         let player = meshes::createPersonMesh(context, player_width, player_height)?;
         let floor = meshes::createFloor(context, arena_width, 5.0)?;
-        let bird_width = 25.0;
-        let bird_height = 10.0;
-        let bird_mesh = meshes::createBird(context, bird_width, bird_height)?;
         let mut world = World::new();
         let bullet_size = 5.0;
+        let bird_width = 25.0;
+        let bird_height = 10.0;
         world.register::<Position>();
         world.register::<ObjectMesh>();
         world.register::<HasGravity>();
@@ -103,19 +109,6 @@ impl GameState {
             .with(Floor)
             .build();
 
-        // bird
-        world
-            .create_entity()
-            .with(Position { x: 200.0, y: 200.0 })
-            .with(ObjectMesh::new(bird_mesh))
-            .with(Height::new(bird_height))
-            .with(Width::new(bird_width))
-            .with(Velocity { x: 0.0, y: 0.0 })
-            .with(Acceleration { x: 0.0, y: 0.0 })
-            .with(Drag::new(0.0))
-            .with(Flyer)
-            .build();
-
         // bullets
         for _ in 0..3 {
             let bullet_mesh = meshes::createBullet(context, bullet_size)?;
@@ -129,7 +122,38 @@ impl GameState {
                 .with(BulletState::new())
                 .build();
         }
-        Ok(GameState { world })
+        Ok(GameState {
+            world,
+            create_bird_every_miliseconds: 3000,
+            time_to_create_bird: 0,
+            birds_to_create_at_the_same_time: 1,
+            bird_mesh: meshes::createBird(context, bird_width, bird_height)?,
+            bird_width,
+            bird_height,
+        })
+    }
+}
+
+impl GameState {
+    fn create_bird(&mut self, arena_width: f32, arena_height: f32) -> GameResult<()> {
+        for _ in 0..self.birds_to_create_at_the_same_time {
+            let mut rng = rand::thread_rng();
+            self.world
+                .create_entity()
+                .with(Position {
+                    x: rng.gen_range(-self.bird_width, arena_width + self.bird_width),
+                    y: -self.bird_height - 10.0,
+                })
+                .with(ObjectMesh::new(self.bird_mesh.clone()))
+                .with(Height::new(self.bird_height))
+                .with(Width::new(self.bird_width))
+                .with(Velocity { x: 0.0, y: 0.0 })
+                .with(Acceleration { x: 0.0, y: 0.0 })
+                .with(Drag::new(0.0))
+                .with(Flyer)
+                .build();
+        }
+        Ok(())
     }
 }
 
@@ -142,7 +166,7 @@ impl EventHandler for GameState {
         if delta_time < fps_cap {
             delta_time = fps_cap;
         }
-        let duration_since_start = timer::time_since_start(context);
+        let duration_since_start = timer::time_since_start(context).as_millis();
         let mut gravity_system = GravitySystem { arena_height };
         let mut move_system = ApplyForceSystem { delta_time };
         let mut hit_ground = HitGround { arena_height };
@@ -161,9 +185,17 @@ impl EventHandler for GameState {
             let mouse_location = mouse::position(context);
             let mut fire_bullet_system = FireBulletSystem {
                 mouse_location: Point2::new(mouse_location.x, mouse_location.y),
-                duration_since_start: duration_since_start.as_millis(),
+                duration_since_start: duration_since_start,
             };
             fire_bullet_system.run_now(&mut self.world);
+        }
+
+        if self.time_to_create_bird < duration_since_start {
+            self.create_bird(arena_width, arena_height)?;
+            self.time_to_create_bird = duration_since_start + self.create_bird_every_miliseconds;
+            if self.birds_to_create_at_the_same_time < 50 {
+                self.birds_to_create_at_the_same_time += 1;
+            }
         }
 
         gravity_system.run_now(&self.world);
