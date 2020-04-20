@@ -44,3 +44,20 @@ impl DelayFiringUntilAfter {
         self.0 = new_time;
     }
 }
+
+#[derive(Default)]
+pub struct Score(usize);
+
+impl Score {
+    pub fn new() -> Score {
+        Score(0)
+    }
+
+    pub fn get(&self) -> usize {
+        self.0
+    }
+
+    pub fn increase(&mut self, amount: usize) {
+        self.0 += amount;
+    }
+}

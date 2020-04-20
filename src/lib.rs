@@ -13,13 +13,13 @@ use ggez::input::{keyboard, mouse};
 use ggez::nalgebra::Point2;
 use ggez::{graphics, timer, Context, GameResult};
 use rand::prelude::*;
-use resources::{BulletSize, DelayFiringUntilAfter, StillAlive};
+use resources::{BulletSize, DelayFiringUntilAfter, Score, StillAlive};
 use specs::prelude::*;
 use specs::ReadStorage;
 use systems::{
     ApplyForceSystem, CheckEggSystem, DragSystem, FireBulletSystem, FlySystem, GravitySystem,
-    HideHitBullets, HitGround, LandOnEggSystem, MovePlayerSystem, RenderSystem, ResetBulletsSystem,
-    ShootBirdsSystem,
+    HideHitBullets, HitGround, IncreaseScoreBySurvivingSystem, LandOnEggSystem, MovePlayerSystem,
+    RenderSystem, ResetBulletsSystem, ShootBirdsSystem,
 };
 
 pub struct GameState {
@@ -30,6 +30,8 @@ pub struct GameState {
     bird_mesh: Mesh,
     bird_width: f32,
     bird_height: f32,
+    increase_score_every_miliseconds: u128,
+    next_score_increase_time: u128,
 }
 
 impl GameState {
@@ -66,6 +68,7 @@ impl GameState {
         world.insert(StillAlive::new());
         world.insert(BulletSize::new(bullet_size));
         world.insert(DelayFiringUntilAfter::new());
+        world.insert(Score::new());
 
         // egg
         world
@@ -130,6 +133,8 @@ impl GameState {
             bird_mesh: meshes::createBird(context, bird_width, bird_height)?,
             bird_width,
             bird_height,
+            increase_score_every_miliseconds: 5000,
+            next_score_increase_time: 5000,
         })
     }
 }
@@ -196,6 +201,13 @@ impl EventHandler for GameState {
             if self.birds_to_create_at_the_same_time < 50 {
                 self.birds_to_create_at_the_same_time += 1;
             }
+        }
+
+        if self.next_score_increase_time < duration_since_start {
+            let mut score_system = IncreaseScoreBySurvivingSystem;
+            score_system.run_now(&self.world);
+            self.next_score_increase_time =
+                duration_since_start + self.increase_score_every_miliseconds;
         }
 
         gravity_system.run_now(&self.world);

@@ -8,7 +8,8 @@ A Ludum Dare 46 project
 * [x] Player can shoot birds
 * [x] Player has limited bullets
 * [x] Number of birds increase slowly over time
-* [ ] Score based on birds killed and time egg survived
+* [x] Score based on birds killed and time egg survived
+* [ ] Birds drop poop, which will stun player
 * [ ] Game over if egg is taken off screen
 * [ ] Player must catch the egg when it falls after shooting a bird carrying it
 * [ ] Birds can drop power ups
@@ -18,7 +19,6 @@ A Ludum Dare 46 project
   * [ ] grenade launcher
 * [ ] Birds flap their wings
 * [ ] Different colored birds have different speeds
-* [ ] Birds drop poop, which will stun player
 
 ## Polishing
 

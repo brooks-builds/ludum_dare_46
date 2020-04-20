@@ -3,7 +3,7 @@ use super::components::{
     ObjectMesh, OnGround, Player, Position, Radius, Velocity, Width,
 };
 use super::meshes;
-use super::resources::{BulletSize, DelayFiringUntilAfter, StillAlive};
+use super::resources::{BulletSize, DelayFiringUntilAfter, Score, StillAlive};
 use ggez::event::KeyCode;
 use ggez::input::keyboard;
 use ggez::nalgebra::{Point2, Vector2};
@@ -74,15 +74,45 @@ pub struct RenderSystem<'a> {
     pub context: &'a mut Context,
 }
 
+impl RenderSystem<'_> {
+    fn draw_score_small(&mut self, score: usize) {
+        let text = graphics::Text::new(format!("Score: {}", score));
+
+        graphics::draw(
+            self.context,
+            &text,
+            graphics::DrawParam::default().dest(Point2::new(5.0, 25.0)),
+        )
+        .unwrap();
+    }
+
+    fn draw_score_large(&mut self, score: usize, arena_width: f32, arena_height: f32) {
+        let mut text = graphics::Text::new(format!("You Scored {}", score));
+        let font = graphics::Font::default();
+        let font_scale = graphics::Scale::uniform(100.0);
+
+        text.set_font(font, font_scale);
+
+        graphics::draw(
+            self.context,
+            &text,
+            graphics::DrawParam::default()
+                .dest(Point2::new(arena_width / 5.0, arena_height / 2.0 + 50.0)),
+        )
+        .unwrap();
+    }
+}
+
 impl<'a> System<'a> for RenderSystem<'a> {
     type SystemData = (
         ReadStorage<'a, Position>,
         ReadStorage<'a, ObjectMesh>,
         Read<'a, StillAlive>,
         ReadStorage<'a, BulletState>,
+        Read<'a, Score>,
     );
 
-    fn run(&mut self, (position, mesh, still_alive, bullet_state): Self::SystemData) {
+    fn run(&mut self, (position, mesh, still_alive, bullet_state, score): Self::SystemData) {
         let mut bullet_count_text = String::from("Bullets: ");
         for bullet_state in bullet_state.join() {
             if let CurrentBulletState::Ready = bullet_state.get() {
@@ -111,6 +141,9 @@ impl<'a> System<'a> for RenderSystem<'a> {
                     .dest(Point2::new(arena_width / 4.0, arena_height / 2.0 - 100.0)),
             )
             .unwrap();
+            self.draw_score_large(score.get(), arena_width, arena_height);
+        } else {
+            self.draw_score_small(score.get());
         }
 
         graphics::draw(
@@ -398,9 +431,13 @@ impl<'a> System<'a> for ShootBirdsSystem {
         ReadStorage<'a, Flyer>,
         Entities<'a>,
         WriteStorage<'a, BulletState>,
+        Write<'a, Score>,
     );
 
-    fn run(&mut self, (mut position, bullet, flyer, entities, mut bullet_state): Self::SystemData) {
+    fn run(
+        &mut self,
+        (mut position, bullet, flyer, entities, mut bullet_state, mut score): Self::SystemData,
+    ) {
         for (bullet_position, bullet, bullet_entity, bullet_state) in
             (&position, &bullet, &entities, &mut bullet_state).join()
         {
@@ -413,6 +450,7 @@ impl<'a> System<'a> for ShootBirdsSystem {
                     if distance < 25.0 {
                         entities.delete(flyer_entity).unwrap();
                         bullet_state.hit();
+                        score.increase(10);
                     }
                 }
             }
@@ -436,6 +474,18 @@ impl<'a> System<'a> for HideHitBullets {
                 position.x = -50.0;
                 position.y = -50.0;
             }
+        }
+    }
+}
+
+pub struct IncreaseScoreBySurvivingSystem;
+
+impl<'a> System<'a> for IncreaseScoreBySurvivingSystem {
+    type SystemData = (Read<'a, StillAlive>, Write<'a, Score>);
+
+    fn run(&mut self, (still_alive, mut score): Self::SystemData) {
+        if still_alive.get() {
+            score.increase(1);
         }
     }
 }
